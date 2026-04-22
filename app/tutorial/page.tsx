@@ -151,7 +151,7 @@ export default function TutorialPage() {
               
               {/* 链接 1：Leipzig 官方规则 */}
               <a 
-                href="https://www.eva.mpg.de/ling/pdf/Glossing-Rules.pdf" 
+                href="https://www.eva.mpg.de/lingua/resources/glossing-rules.php" 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="group flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200 hover:bg-white hover:border-blue-300 hover:shadow-md transition-all"
