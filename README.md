@@ -10,7 +10,7 @@ https://linguisnap.vercel.app/
 
 ---
 
-## ✨ 核心理念 (Philosophy)
+## 理念
 
 ### 语言是一堆积木 (Language as Lego)
 传统的学习方式往往让人迷失在海量的单词和语法规则中。LinguiSnap 提倡自上而下的学习路径：
