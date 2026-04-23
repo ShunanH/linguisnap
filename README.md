@@ -3,7 +3,9 @@
 > **Snap your languages to their core.** | **拆积木一样学语言。**
 
 LinguiSnap是一款基于大语言模型（LLM）驱动的外语骨架解析工具。它不采用传统的外语学习模式，通过基于语言学的形态语法拆解，将复杂的句子还原为最基础的词素积木。
+
 可通过vercel托管访问网页版：
+
 https://linguisnap.vercel.app/
 
 ---
