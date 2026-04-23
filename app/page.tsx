@@ -11,9 +11,6 @@ export default function Home() {
         {/* 1. 头部导航区域 (包含 Logo 和教程入口) */}
         <Header />
 
-        {/* 2. 控制面板 (API Key、模型选择、语言偏好) */}
-        <Settings />
-
         {/* 3. 核心交互区 (输入框、预设按钮、结果网格) */}
         <Analyzer />
 
