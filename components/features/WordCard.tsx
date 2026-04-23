@@ -14,21 +14,18 @@ const getMorphemeColor = (type: Morpheme['type']) => {
 
 export default function WordCard({ word }: { word: WordAnalysis }) {
   return (
-    // 用 Tooltip.Provider 包裹卡片，设置 100ms 的悬停延迟，防误触
+
     <Tooltip.Provider delayDuration={100}>
       <div className="flex flex-col items-center gap-2 w-max min-w-[80px]">
         
-        {/* 第 1 行：原词 */}
+
         <div className="text-xl font-bold tracking-tight text-slate-900 h-8 flex items-end whitespace-nowrap">
           {word.original}
         </div>
 
-        {/* ============================== */}
-        {/* 第 2 行：词素拆解 (上方深色浮窗) */}
-        {/* ============================== */}
+ 
         <Tooltip.Root>
           <Tooltip.Trigger asChild>
-            {/* 触发器 */}
             <div className="cursor-pointer h-6 flex items-center outline-none">
               <div className="flex font-mono text-[15px] tracking-wide whitespace-nowrap">
                 {word.morphemes.map((m, idx) => (
@@ -38,7 +35,6 @@ export default function WordCard({ word }: { word: WordAnalysis }) {
             </div>
           </Tooltip.Trigger>
 
-          {/* 🌟 真正的魔法：Portal 传送门！它会让浮窗直接跳出任何滚动条的限制 */}
           <Tooltip.Portal>
             <Tooltip.Content 
               side="top" 
@@ -56,15 +52,12 @@ export default function WordCard({ word }: { word: WordAnalysis }) {
                   ))}
                 </div>
               </div>
-              {/* 原生自带的高级小三角箭头 */}
+
               <Tooltip.Arrow className="fill-slate-900/95" width={16} height={8} />
             </Tooltip.Content>
           </Tooltip.Portal>
         </Tooltip.Root>
 
-        {/* ============================== */}
-        {/* 第 3 行：语法标签 (下方浅色浮窗) */}
-        {/* ============================== */}
         <Tooltip.Root>
           <Tooltip.Trigger asChild>
             <div className="cursor-pointer h-5 flex items-center outline-none">
@@ -96,7 +89,6 @@ export default function WordCard({ word }: { word: WordAnalysis }) {
           </Tooltip.Portal>
         </Tooltip.Root>
 
-        {/* 第 4 行：直译 */}
         <div className="text-sm text-slate-500 mt-1 h-6 flex items-start italic whitespace-nowrap">
           {word.translation}
         </div>

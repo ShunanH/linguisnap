@@ -18,7 +18,7 @@ const ratelimit = new Ratelimit({
 
 export async function POST(req: Request) {
   try {
-    // 1. 接收前端传来的数据
+
     const { text, apiKey, provider, model, lang } = await req.json();
 
     if (!text || !text.trim()) {
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
 
     let responseText = "";
 
-    // 4. 🌟 多模型路由分发网络 🌟
+
     if (provider === "openai") {
       const openai = new OpenAI({ apiKey: finalApiKey });
       const response = await openai.chat.completions.create({
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
     } else if (provider === "deepseek") {
       const openai = new OpenAI({ 
         apiKey: finalApiKey,
-        baseURL: "https://api.deepseek.com", // 改投 DeepSeek 怀抱
+        baseURL: "https://api.deepseek.com", 
       });
       const response = await openai.chat.completions.create({
         model: model || "deepseek-chat",

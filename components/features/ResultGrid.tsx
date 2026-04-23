@@ -8,14 +8,12 @@ export default function ResultGrid({ data }: { data: SentenceAnalysis }) {
   return (
     <div className="bg-white/80 backdrop-blur-xl px-10 pt-10 pb-8 rounded-[2rem] border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative z-0">
         
-        {/* 🌟 修复：去掉夸张的 padding，换上我们新写的 custom-scrollbar */}
         <div className="flex gap-x-10 items-start overflow-x-auto pb-6 w-full custom-scrollbar">
           {data.words.map((word, idx) => (
             <WordCard key={idx} word={word} />
           ))}
         </div>
 
-        {/* 底部整句翻译 (去掉之前的负 margin hack) */}
         <div className="mt-4 pt-6 border-t border-slate-100/60 text-center">
           <p className="text-sm font-medium text-slate-400 tracking-widest uppercase mb-2">整句意译</p>
           <p className="text-xl text-slate-700 font-medium">{data.overallTranslation}</p>

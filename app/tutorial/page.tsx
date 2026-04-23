@@ -101,7 +101,7 @@ export default function TutorialPage() {
     <main className="min-h-screen bg-[#f5f5f7] text-slate-900 font-sans selection:bg-blue-200 selection:text-blue-900 pb-20">
       <div className="max-w-3xl mx-auto px-6 pt-10 space-y-8">
         
-        {/* 顶部返回区域 */}
+
         <div className="flex items-center justify-between">
           <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors bg-white/60 px-4 py-2 rounded-full border border-slate-200 hover:bg-white shadow-sm">
             <ArrowLeft size={14} />
@@ -113,16 +113,12 @@ export default function TutorialPage() {
         <article className="bg-white/80 backdrop-blur-xl p-8 md:p-10 rounded-[2rem] border border-black/[0.04] shadow-sm space-y-10">
           
           <header className="border-b border-slate-100 pb-6 text-center">
-            {/* 🌟 主标题：去掉了 text-4xl 和 font-extrabold，改为更克制的 text-2xl/3xl 和 font-semibold */}
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight mb-2 text-slate-900">{t.title}</h1>
             <p className="text-sm text-slate-500 tracking-wide">{t.subtitle}</p>
           </header>
 
-          {/* ========================================== */}
-          {/* 1. 运行模式说明 */}
-          {/* ========================================== */}
+
           <section className="space-y-4">
-            {/* 🌟 副标题：去掉了 text-2xl 和 font-bold，改为 text-lg/xl 和 font-medium */}
             <h2 className="text-lg md:text-xl font-medium text-slate-800 flex items-center gap-2">
               {t.modes.title}
             </h2>
@@ -144,9 +140,7 @@ export default function TutorialPage() {
             </div>
           </section>
 
-          {/* ========================================== */}
-          {/* 2. 语言是一堆积木 */}
-          {/* ========================================== */}
+
           <section className="space-y-3">
             <h2 className="text-lg md:text-xl font-medium text-slate-800 flex items-center gap-2">
               {t.lego.title}
@@ -155,16 +149,14 @@ export default function TutorialPage() {
             <p className="text-[15px] text-slate-600 leading-relaxed"><strong>{t.lego.p2}</strong></p>
           </section>
 
-          {/* ========================================== */}
-          {/* 3. 语言的积木零件 */}
-          {/* ========================================== */}
+
           <section className="space-y-5">
             <h2 className="text-lg md:text-xl font-medium text-slate-800 flex items-center gap-2">
               {t.sentence.title}
             </h2>
             <p className="text-[15px] text-slate-600 leading-relaxed">{t.sentence.desc}</p>
             
-            {/* 整句演示 UI - 整体缩小字号 */}
+
             <div className="bg-[#f8f9fa] p-5 md:p-6 rounded-2xl border border-slate-200 overflow-x-auto shadow-inner">
               <div className="flex gap-3 w-max mx-auto">
                 <div className="flex flex-col gap-1 items-center bg-white p-2.5 rounded-xl shadow-sm border border-slate-100">
@@ -201,9 +193,6 @@ export default function TutorialPage() {
             </div>
           </section>
 
-          {/* ========================================== */}
-          {/* 4. Leipzig 标注法解释 */}
-          {/* ========================================== */}
           <section className="space-y-5">
             <h2 className="text-lg md:text-xl font-medium text-slate-800 flex items-center gap-2">
               {t.leipzig.title}
@@ -229,9 +218,7 @@ export default function TutorialPage() {
             </div>
           </section>
 
-          {/* ========================================== */}
-          {/* 5. 四行卡片拆解说明 */}
-          {/* ========================================== */}
+
           <section className="space-y-6">
             <h2 className="text-lg md:text-xl font-medium text-slate-800 flex items-center gap-2">
               {t.card.title}
@@ -271,9 +258,7 @@ export default function TutorialPage() {
             </div>
           </section>
 
-          {/* ========================================== */}
-          {/* 参考链接与延伸阅读 */}
-          {/* ========================================== */}
+
           <section className="space-y-4 pt-6 border-t border-slate-100">
             <h2 className="text-base font-medium text-slate-800">{t.reference}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

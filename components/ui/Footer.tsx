@@ -26,12 +26,10 @@ export default function Footer() {
   return (
     <footer className="w-full py-5 mt-8 border-t border-slate-200 flex flex-col items-center justify-center gap-1.5">
       
-      {/* 第一行：版权信息 */}
       <div className="text-xs font-medium text-slate-500">
         {t.copyright}
       </div>
-      
-      {/* 第二行：开发者信息与链接合并，大幅节省空间 */}
+
       <div className="text-[11px] text-slate-400 flex flex-wrap justify-center items-center gap-2 sm:gap-3">
         <span>{t.crafted}</span>
         <span className="text-slate-300 hidden sm:inline">|</span>
@@ -47,7 +45,6 @@ export default function Footer() {
         <span className="hover:text-slate-600 transition-colors cursor-default">{t.premium}</span>
       </div>
 
-      {/* 第三行：免责声明区 - 缩小了与上方的距离 */}
       <div className="max-w-2xl px-6 text-center mt-1 text-[10px] text-slate-400 leading-normal">
         <p>{t.disclaimer}</p>
       </div>

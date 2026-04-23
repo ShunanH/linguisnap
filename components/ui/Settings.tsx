@@ -31,7 +31,7 @@ export default function Settings() {
   ] : [
     { id: 'en-all', name: 'English Parsing & Translation' },
     { id: 'zh-parse-en-trans', name: 'Chinese Parsing + English Trans' },
-    { id: 'zh-all', name: 'Chinese Parsing' },
+    { id: 'zh-all', name: 'Chinese Parsing & Translation' },
   ];
 
   const [isPro, setIsPro] = useState(false); 
@@ -70,6 +70,14 @@ export default function Settings() {
     return () => window.removeEventListener('ui_lang_changed', handleUiLangSync);
   }, []);
 
+
+  const handleLangChange = (newLang: string) => {
+    setLang(newLang);
+    const existingConfig = JSON.parse(localStorage.getItem("linguisnap_config") || '{"keys":{}}');
+    existingConfig.lang = newLang;
+    localStorage.setItem("linguisnap_config", JSON.stringify(existingConfig));
+  };
+
   const handleProviderChange = (newProvider: string) => {
     setProvider(newProvider);
     setModel(PROVIDER_MODELS[newProvider][0].id); 
@@ -90,12 +98,12 @@ export default function Settings() {
     existingConfig.isPro = isPro;
     existingConfig.provider = provider;
     existingConfig.model = model;
-    existingConfig.lang = lang;
     if (isPro) existingConfig.keys[provider] = CryptoJS.AES.encrypt(apiKey, SECRET_SALT).toString();
     localStorage.setItem("linguisnap_config", JSON.stringify(existingConfig));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
+  
   const handleClear = () => {
     const existingConfig = JSON.parse(localStorage.getItem("linguisnap_config") || '{"keys":{}}');
     if (existingConfig.keys) {
@@ -105,9 +113,31 @@ export default function Settings() {
     setApiKey("");
   };
 
-
   return (
     <div className="flex flex-col gap-6 w-full mt-4">
+      
+      <div className="flex flex-col gap-2">
+        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-1">
+          {uiLang === 'zh' ? '输出语言偏好' : 'Output Preference'}
+        </label>
+        <Select.Root value={lang} onValueChange={handleLangChange}>
+          <Select.Trigger className="inline-flex items-center justify-between w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 font-medium hover:bg-slate-100 outline-none focus:ring-2 focus:ring-blue-100 transition-colors">
+            <div className="flex items-center gap-2"><Globe size={16} className="text-slate-400" /><Select.Value /></div>
+            <Select.Icon><ChevronDown size={16} className="text-slate-400" /></Select.Icon>
+          </Select.Trigger>
+          <Select.Portal><Select.Content position="popper" sideOffset={6} className="w-full bg-white border border-slate-200 rounded-xl shadow-xl z-[9999] p-1"><Select.Viewport>
+            {DYNAMIC_LANGUAGES.map((l) => (
+              <Select.Item key={l.id} value={l.id} className="relative flex items-center px-8 py-2 text-sm text-slate-700 font-medium rounded-lg cursor-pointer hover:bg-blue-50 outline-none data-[state=checked]:bg-slate-50 transition-colors">
+                <Select.ItemText>{l.name}</Select.ItemText>
+                <Select.ItemIndicator className="absolute left-2"><Check size={14} className="text-blue-600" /></Select.ItemIndicator>
+              </Select.Item>
+            ))}
+          </Select.Viewport></Select.Content></Select.Portal>
+        </Select.Root>
+      </div>
+
+      <hr className="border-slate-100" />
+
       <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-2xl">
         <div>
           <p className="font-bold text-sm text-slate-800">{isPro ? t.settings.proMode : t.settings.basicMode}</p>
@@ -117,15 +147,13 @@ export default function Settings() {
           onClick={handleProToggle} 
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isPro ? 'bg-blue-600' : 'bg-slate-300'}`}
         >
-          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isPro ? 'translate-x-6' : 'translate-x-1'}`} />
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${isPro ? 'translate-x-6' : 'translate-x-1'}`} />
         </button>
       </div>
 
-      {/* 🌟 只有极客模式开启时，才显示复杂的表单 */}
       {isPro && (
         <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
           <div className="flex flex-col gap-3">
-            {/* 厂牌选择 */}
             <Select.Root value={provider} onValueChange={handleProviderChange}>
               <Select.Trigger className="inline-flex items-center justify-between w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm text-slate-700 font-medium hover:bg-slate-100 outline-none focus:ring-2 focus:ring-blue-100">
                 <div className="flex items-center gap-2"><Sparkles size={16} className="text-slate-400" /><Select.Value /></div>
@@ -141,7 +169,6 @@ export default function Settings() {
               </Select.Viewport></Select.Content></Select.Portal>
             </Select.Root>
 
-            {/* 模型选择 */}
             <Select.Root value={model} onValueChange={setModel}>
               <Select.Trigger className="inline-flex items-center justify-between w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm text-slate-700 font-medium hover:bg-slate-100 outline-none focus:ring-2 focus:ring-blue-100">
                 <div className="flex items-center gap-2"><Cpu size={16} className="text-slate-400" /><Select.Value /></div>
@@ -156,25 +183,8 @@ export default function Settings() {
                 ))}
               </Select.Viewport></Select.Content></Select.Portal>
             </Select.Root>
-
-            {/* 语言选择 */}
-            <Select.Root value={lang} onValueChange={setLang}>
-              <Select.Trigger className="inline-flex items-center justify-between w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm text-slate-700 font-medium hover:bg-slate-100 outline-none focus:ring-2 focus:ring-blue-100">
-                <div className="flex items-center gap-2"><Globe size={16} className="text-slate-400" /><Select.Value /></div>
-                <Select.Icon><ChevronDown size={16} className="text-slate-400" /></Select.Icon>
-              </Select.Trigger>
-              <Select.Portal><Select.Content position="popper" sideOffset={6} className="w-full bg-white border border-slate-200 rounded-xl shadow-xl z-[9999] p-1"><Select.Viewport>
-                {DYNAMIC_LANGUAGES.map((l) => (
-                  <Select.Item key={l.id} value={l.id} className="relative flex items-center px-8 py-2 text-sm text-slate-700 font-medium rounded-lg cursor-pointer hover:bg-blue-50 outline-none data-[state=checked]:bg-slate-50">
-                    <Select.ItemText>{l.name}</Select.ItemText>
-                    <Select.ItemIndicator className="absolute left-2"><Check size={14} className="text-blue-600" /></Select.ItemIndicator>
-                  </Select.Item>
-                ))}
-              </Select.Viewport></Select.Content></Select.Portal>
-            </Select.Root>
           </div>
 
-          {/* 密码输入 */}
           <div className="flex flex-col gap-2 mt-2">
             <div className="flex items-center gap-3 bg-white border border-slate-200 px-4 py-2.5 rounded-xl focus-within:ring-2 focus-within:ring-blue-100">
               <Lock size={16} className="text-slate-400" />

@@ -58,7 +58,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     setUiLang(lang);
     localStorage.setItem('linguisnap_ui_lang', lang);
     
-    //底层 Prompt 输出偏好
     const configStr = localStorage.getItem("linguisnap_config") || '{"keys":{}}';
     try {
       const config = JSON.parse(configStr);

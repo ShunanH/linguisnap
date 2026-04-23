@@ -93,7 +93,6 @@ export default function Analyzer() {
 
   return (
     <div className="space-y-8">
-      {/* 魔法输入框 */}
       <div className="bg-white/80 backdrop-blur-xl p-2 rounded-[2rem] border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative transition-all focus-within:shadow-[0_8px_40px_rgba(59,130,246,0.1)] focus-within:border-blue-100/50">
         <textarea
           value={text}
@@ -135,7 +134,6 @@ export default function Analyzer() {
         </div>
       </div>
 
-      {/* 报错提示区 */}
       {error && (
         <div className="animate-in fade-in slide-in-from-top-2 flex justify-center px-4">
           <div className="bg-red-50/90 backdrop-blur-sm border border-red-100 text-red-600 px-4 py-3 rounded-2xl text-sm flex items-center gap-3 shadow-sm max-w-lg w-full">
@@ -146,7 +144,7 @@ export default function Analyzer() {
         </div>
       )}
 
-      {/* 结果展示区 */}
+
       {data && (
         <div className="animate-in slide-in-from-bottom-4 fade-in duration-500">
 
