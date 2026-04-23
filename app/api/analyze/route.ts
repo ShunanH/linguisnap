@@ -1,13 +1,16 @@
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
-import { NextResponse } from "next/server";
+
 import { getSystemPrompt } from "@/lib/prompts";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { NextResponse } from "next/server"
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || "",
+  token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || "",
+});
 
-
-const redis = Redis.fromEnv();
 const ratelimit = new Ratelimit({  redis: redis,
   limiter: Ratelimit.slidingWindow(20, "24 h"),
 });
