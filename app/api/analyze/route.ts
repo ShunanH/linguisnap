@@ -4,11 +4,11 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { getSystemPrompt } from "@/lib/prompts";
 import { Ratelimit } from "@upstash/ratelimit";
-import { kv } from "@vercel/kv";
+import { Redis } from "@upstash/redis";
 
 
-const ratelimit = new Ratelimit({
-  redis: kv,
+const redis = Redis.fromEnv();
+const ratelimit = new Ratelimit({  redis: redis,
   limiter: Ratelimit.slidingWindow(20, "24 h"),
 });
 
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
     // 注入默认 Key
     let finalApiKey = apiKey?.trim() || "";
-    let isUsingFreeTier = false; // 🛡️ 标记是否在使用学习模式的免费额度
+    let isUsingFreeTier = false; // 标记是否在使用学习模式的免费额度
     
     if (finalApiKey === "LINGUISNAP_SECRET_BYPASS_2026") {
       finalApiKey = process.env.DEEPSEEK_DEFAULT_KEY || "";
@@ -39,15 +39,13 @@ export async function POST(req: Request) {
     if (!finalApiKey) {
       return NextResponse.json({ error: "未检测到有效的API Key，请检查设置。" }, { status: 401 });
     }
-
-
     if (isUsingFreeTier) {
       const ip = req.headers.get("x-forwarded-for") ?? "127.0.0.1";
       const { success, limit, reset, remaining } = await ratelimit.limit(`ratelimit_${ip}`);
 
       if (!success) {
         return NextResponse.json({ 
-          error: "今日「学习模式」的免费体验已用完啦！请明天再来，或在菜单开启「专业模式」填入自有Key继续使用。" 
+          error: "今日「学习模式」的免费体验次数已用完啦！请明天再来，或在菜单开启「专业模式」填入自有 Key 继续使用。" 
         }, { status: 429 });
       }
 
@@ -79,7 +77,7 @@ export async function POST(req: Request) {
     } else if (provider === "deepseek") {
       const openai = new OpenAI({ 
         apiKey: finalApiKey,
-        baseURL: "https://api.deepseek.com", 
+        baseURL: "https://api.deepseek.com", // 改投 DeepSeek 怀抱
       });
       const response = await openai.chat.completions.create({
         model: model || "deepseek-chat",
@@ -121,6 +119,7 @@ export async function POST(req: Request) {
       throw new Error("EMPTY_RESPONSE");
     }
 
+    // 后台调试日志
     console.log(`=== API 原始返回数据 ===`);
     console.log(responseText);
     console.log("============================");
@@ -151,7 +150,7 @@ export async function POST(req: Request) {
     } else if (errorMsg.includes("API key not valid") || errorMsg.includes("Incorrect API key") || errorMsg.includes("invalid x-api-key") || errorMsg.includes("Authentication Fails")) {
       friendlyMessage = "API Key 好像不正确或已失效，请重新检查一下~";
     } else if (errorMsg.includes("429") || errorMsg.includes("quota") || errorMsg.includes("insufficient_quota")) {
-      friendlyMessage = "API 额度好像用完了，或者请求太频繁，请检查账单或稍后再试。";
+      friendlyMessage = "API 额度好像用完了，或者请求太频繁啦，请检查账单或稍后再试。";
     }
 
     return NextResponse.json({ error: friendlyMessage }, { status: 500 });
