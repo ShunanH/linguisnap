@@ -108,7 +108,6 @@ export default function Settings() {
 
   return (
     <div className="flex flex-col gap-6 w-full mt-4">
-      {/* 极客模式开关 */}
       <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-2xl">
         <div>
           <p className="font-bold text-sm text-slate-800">{isPro ? t.settings.proMode : t.settings.basicMode}</p>

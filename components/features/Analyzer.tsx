@@ -149,14 +149,6 @@ export default function Analyzer() {
       {/* 结果展示区 */}
       {data && (
         <div className="animate-in slide-in-from-bottom-4 fade-in duration-500">
-          
-          {data.correctedSentence && (
-            <div className="mb-4 flex items-center justify-center gap-2 text-sm text-amber-600 bg-amber-50 py-2 px-4 rounded-full w-max mx-auto border border-amber-100 shadow-sm">
-              <Sparkles size={16} />
-              {uiLang === 'en' ? 'Auto-corrected typo:' : '已自动修正拼写：'} 
-              <span className="font-medium font-mono">{data.correctedSentence}</span>
-            </div>
-          )}
 
           <div className="bg-white/80 backdrop-blur-xl px-4 sm:px-10 pt-10 pb-8 rounded-[2rem] border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative z-0">
             <div className="flex gap-x-10 items-start overflow-x-auto pb-6 w-full custom-scrollbar">

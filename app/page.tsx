@@ -1,20 +1,16 @@
-import Settings from '@/components/ui/Settings';
 import Analyzer from '@/components/features/Analyzer';
 import Header from '@/components/ui/Header';
+import Footer from '@/components/ui/Footer';
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[#f5f5f7] text-slate-900 font-sans selection:bg-blue-200 selection:text-blue-900 pb-20">
-      {/* max-w-5xl 保证了页面有足够的宽度来横向展示词组卡片 */}
-      <div className="max-w-5xl mx-auto px-6 pt-10 space-y-8">
-        
-        {/* 1. 头部导航区域 (包含 Logo 和教程入口) */}
+    <main className="min-h-screen bg-[#f5f5f7] flex flex-col text-slate-900 font-sans selection:bg-blue-200 selection:text-blue-900">
+      <div className="flex-1 max-w-5xl mx-auto w-full px-6 pt-10 space-y-8">
         <Header />
-
-        {/* 3. 核心交互区 (输入框、预设按钮、结果网格) */}
         <Analyzer />
-
       </div>
+
+      <Footer />
     </main>
   );
 }
