@@ -1,7 +1,21 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type {
+  Metadata,
+} from "next";
+
+import {
+  Geist,
+  Geist_Mono,
+} from "next/font/google";
+
 import "./globals.css";
-import { LanguageProvider } from '@/components/LanguageContext';
+
+import {
+  LanguageProvider,
+} from "@/components/LanguageContext";
+
+import {
+  ApiKeyProvider,
+} from "@/components/ApiKeyContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,13 +27,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-//webpage metadata
 export const metadata: Metadata = {
   title: "LinguiSnap",
-  description: "你的语言理解助手。",
+  description:
+    "你的语言理解助手。",
 };
 
-// rootlayout
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -29,11 +42,13 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-      suppressHydrationWarning 
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
         <LanguageProvider>
-          {children}
+          <ApiKeyProvider>
+            {children}
+          </ApiKeyProvider>
         </LanguageProvider>
       </body>
     </html>
