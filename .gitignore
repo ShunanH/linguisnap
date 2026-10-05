@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+.pytest_cache/
 
 # next.js
 /.next/
@@ -30,7 +31,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# environment files / secrets
 .env*
 
 # vercel
@@ -40,9 +41,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-#python
+# python
 services/api/.venv/
 __pycache__/
 *.pyc
-services/api/
-*.env.local
