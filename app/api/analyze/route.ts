@@ -44,8 +44,15 @@ export async function POST(
   req: Request
 ) {
   try {
-    const body =
-      await req.json();
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: "请求必须是有效 JSON。" }, { status: 400 });
+    }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json({ error: "请求必须是 JSON 对象。" }, { status: 400 });
+    }
 
     const {
       text,
@@ -56,7 +63,14 @@ export async function POST(
       model =
         "deepseek-chat",
       lang = "zh-all",
-    } = body;
+    } = body as Record<string, unknown>;
+
+    if (typeof isPro !== "boolean" || typeof provider !== "string" ||
+        !["openai", "deepseek", "anthropic", "gemini"].includes(provider) ||
+        typeof model !== "string" || !model.trim() || model.length > 200 ||
+        typeof lang !== "string" || lang.length > 50) {
+      return NextResponse.json({ error: "请求参数无效。" }, { status: 400 });
+    }
 
     if (
       typeof text !==
@@ -72,6 +86,10 @@ export async function POST(
           status: 400,
         }
       );
+    }
+
+    if (text.length > 10_000) {
+      return NextResponse.json({ error: "输入不能超过 10000 个字符。" }, { status: 413 });
     }
 
     let finalApiKey = "";
@@ -139,6 +157,9 @@ export async function POST(
        * Only site-funded requests
        * consume the free quota.
        */
+      if (!ratelimit) {
+        return NextResponse.json({ error: "免费额度服务暂不可用，请使用自己的 API Key。" }, { status: 503 });
+      }
       if (ratelimit) {
         const forwarded =
           req.headers.get(
@@ -334,6 +355,7 @@ export async function POST(
         : "";
 
     if (
+      (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name)) ||
       message.includes(
         "timeout"
       ) ||

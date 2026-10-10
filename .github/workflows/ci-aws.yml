@@ -1,0 +1,108 @@
+name: CI and AWS
+
+on:
+  push:
+    branches: [v2, main]
+  pull_request:
+    branches: [v2, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: services/api/requirements.txt
+      - run: pip install -r services/api/requirements.txt
+      - run: python -m pytest -q
+        working-directory: services/api
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx tsc --noEmit
+      - run: npm run build
+
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - run: docker build -t linguisnap-api:test services/api
+      - name: Start container and verify health
+        run: |
+          docker run -d --name api -p 8000:8000 -e INTERNAL_API_TOKEN=ci-only-test-token linguisnap-api:test
+          trap 'docker logs api; docker rm -f api' EXIT
+          curl --fail --retry 15 --retry-connrefused --retry-delay 2 http://localhost:8000/health
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/v2' && vars.AWS_ROLE_ARN != ''
+    needs: [checks, container]
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    concurrency:
+      group: linguisnap-aws-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+      - name: Build and push this commit
+        id: image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+        run: |
+          set -euo pipefail
+          image="$REGISTRY/$REPOSITORY:$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          docker build -t "$image" services/api
+          docker push "$image"
+          echo "uri=$image" >> "$GITHUB_OUTPUT"
+      - name: Deploy and wait for stable service
+        id: ecs
+        uses: aws-actions/amazon-ecs-deploy-express-service@v1
+        with:
+          service-name: linguisnap-api
+          cluster: default
+          image: ${{ steps.image.outputs.uri }}
+          execution-role-arn: ${{ vars.ECS_EXECUTION_ROLE_ARN }}
+          infrastructure-role-arn: ${{ vars.ECS_INFRASTRUCTURE_ROLE_ARN }}
+          container-port: '8000'
+          health-check-path: /health
+          cpu: '256'
+          memory: '512'
+          min-task-count: '1'
+          max-task-count: '1'
+          log-group: /linguisnap/api
+          environment-variables: '[{"name":"ANALYSIS_TIMEOUT_SECONDS","value":"50"}]'
+          secrets: '[{"name":"INTERNAL_API_TOKEN","valueFrom":"${{ vars.INTERNAL_TOKEN_SECRET_ARN }}"}]'
+      - name: Check public HTTPS endpoint
+        env:
+          ENDPOINT: ${{ steps.ecs.outputs.endpoint }}
+          IMAGE: ${{ steps.image.outputs.uri }}
+        run: |
+          set -euo pipefail
+          case "$ENDPOINT" in
+            https://*) ;;
+            http://*) echo 'Expected an HTTPS endpoint'; exit 1 ;;
+            *) ENDPOINT="https://$ENDPOINT" ;;
+          esac
+          curl --fail --retry 10 --retry-delay 3 "${ENDPOINT%/}/health"
+          printf '### AWS deployment\nEndpoint: %s\nImage: %s\n' "$ENDPOINT" "$IMAGE" >> "$GITHUB_STEP_SUMMARY"

@@ -1,10 +1,14 @@
+import asyncio
 import json
+import math
 import os
 import re
 import secrets
 from urllib.parse import quote
 
 import httpx
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from fastapi import (
     FastAPI,
@@ -33,6 +37,22 @@ app = FastAPI(
     title="LinguiSnap AI API",
     version="2.0.0",
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def invalid_request_handler(request, exc):
+    # Validation details can contain API keys, even inside malformed JSON.
+    return JSONResponse(status_code=422, content={"detail": "Invalid analysis request."})
+
+
+def analysis_timeout_seconds() -> float:
+    try:
+        value = float(os.getenv("ANALYSIS_TIMEOUT_SECONDS", "50"))
+    except ValueError:
+        value = float("nan")
+    if not math.isfinite(value) or not 0 < value <= 55:
+        raise HTTPException(status_code=500, detail="Invalid analysis timeout configuration.")
+    return value
 
 
 class ProviderError(
@@ -190,7 +210,10 @@ async def post_provider_json(
         )
 
     try:
-        return response.json()
+        data = response.json()
+        if not isinstance(data, dict):
+            raise ProviderError(502)
+        return data
 
     except ValueError:
         raise ProviderError(
@@ -347,7 +370,7 @@ async def call_anthropic(
             data["content"]
         ):
             if (
-                block.get(
+                isinstance(block, dict) and block.get(
                     "type"
                 )
                 == "text"
@@ -512,13 +535,12 @@ async def analyze(
     )
 
     try:
-        response_text = (
-            await call_provider(
-                request
-            )
+        timeout = analysis_timeout_seconds()
+        response_text = await asyncio.wait_for(
+            call_provider(request), timeout=timeout
         )
 
-        if not response_text:
+        if not isinstance(response_text, str) or not response_text.strip():
             raise ProviderError(
                 502
             )
@@ -564,6 +586,9 @@ async def analyze(
             )
 
         return analysis
+
+    except TimeoutError:
+        raise HTTPException(status_code=504, detail="AI 服务响应超时，请稍后重试。") from None
 
     except HTTPException:
         raise
