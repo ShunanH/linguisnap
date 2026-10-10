@@ -43,7 +43,7 @@ jobs:
         run: |
           docker run -d --name api -p 8000:8000 -e INTERNAL_API_TOKEN=ci-only-test-token linguisnap-api:test
           trap 'docker logs api; docker rm -f api' EXIT
-          curl --fail --retry 15 --retry-connrefused --retry-delay 2 http://localhost:8000/health
+                    curl --fail --retry 15 --retry-all-errors --retry-delay 2 --connect-timeout 2 --max-time 5 --retry-max-time 60 http://localhost:8000/health
 
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/v2' && vars.AWS_ROLE_ARN != ''
