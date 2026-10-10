@@ -21,7 +21,8 @@ jobs:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: services/api/requirements.txt
-      - run: pip install -r services/api/requirements.txt
+      - run: pip install -r services/api/requirements.txt -r deploy/requirements.txt
+      - run: python -m unittest discover -s deploy/tests -v
       - run: python -m pytest -q
         working-directory: services/api
       - uses: actions/setup-node@v6
@@ -43,7 +44,7 @@ jobs:
         run: |
           docker run -d --name api -p 8000:8000 -e INTERNAL_API_TOKEN=ci-only-test-token linguisnap-api:test
           trap 'docker logs api; docker rm -f api' EXIT
-                    curl --fail --retry 15 --retry-all-errors --retry-delay 2 --connect-timeout 2 --max-time 5 --retry-max-time 60 http://localhost:8000/health
+          curl --fail --retry 15 --retry-all-errors --retry-delay 2 --connect-timeout 2 --max-time 5 --retry-max-time 60 http://localhost:8000/health
 
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/v2' && vars.AWS_ROLE_ARN != ''
@@ -75,34 +76,30 @@ jobs:
           docker build -t "$image" services/api
           docker push "$image"
           echo "uri=$image" >> "$GITHUB_OUTPUT"
-      - name: Deploy and wait for stable service
-        id: ecs
-        uses: aws-actions/amazon-ecs-deploy-express-service@v1
+      - uses: actions/setup-python@v6
         with:
-          service-name: linguisnap-api
-          cluster: default
-          image: ${{ steps.image.outputs.uri }}
-          execution-role-arn: ${{ vars.ECS_EXECUTION_ROLE_ARN }}
-          infrastructure-role-arn: ${{ vars.ECS_INFRASTRUCTURE_ROLE_ARN }}
-          container-port: '8000'
-          health-check-path: /health
-          cpu: '256'
-          memory: '512'
-          min-task-count: '1'
-          max-task-count: '1'
-          log-group: /linguisnap/api
-          environment-variables: '[{"name":"ANALYSIS_TIMEOUT_SECONDS","value":"50"}]'
-          secrets: '[{"name":"INTERNAL_API_TOKEN","valueFrom":"${{ vars.INTERNAL_TOKEN_SECRET_ARN }}"}]'
+          python-version: '3.12'
+      - name: Install AWS SDK
+        run: python -m pip install -r deploy/requirements.txt
+      - name: Deploy and verify ECS deployment status
+        id: ecs
+        env:
+          IMAGE: ${{ steps.image.outputs.uri }}
+          EXECUTION_ROLE: ${{ vars.ECS_EXECUTION_ROLE_ARN }}
+          INFRASTRUCTURE_ROLE: ${{ vars.ECS_INFRASTRUCTURE_ROLE_ARN }}
+          TOKEN_SECRET_ARN: ${{ vars.INTERNAL_TOKEN_SECRET_ARN }}
+        run: python deploy/deploy_ecs.py
       - name: Check public HTTPS endpoint
         env:
           ENDPOINT: ${{ steps.ecs.outputs.endpoint }}
           IMAGE: ${{ steps.image.outputs.uri }}
         run: |
           set -euo pipefail
+          test -n "$ENDPOINT" || { echo "ECS returned no endpoint"; exit 1; }
           case "$ENDPOINT" in
             https://*) ;;
             http://*) echo 'Expected an HTTPS endpoint'; exit 1 ;;
             *) ENDPOINT="https://$ENDPOINT" ;;
           esac
-          curl --fail --retry 10 --retry-delay 3 "${ENDPOINT%/}/health"
+          curl --fail --retry 10 --retry-all-errors --retry-delay 3 --connect-timeout 5 --max-time 10 --retry-max-time 120 "${ENDPOINT%/}/health"
           printf '### AWS deployment\nEndpoint: %s\nImage: %s\n' "$ENDPOINT" "$IMAGE" >> "$GITHUB_STEP_SUMMARY"

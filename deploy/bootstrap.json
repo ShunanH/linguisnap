@@ -123,6 +123,45 @@
         },
         "ManagedPolicyArns": [
           "arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices"
+        ],
+        "Policies": [
+          {
+            "PolicyName": "LinguiSnapExpressDeploymentFix",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "ec2:DescribeAccountAttributes",
+                  "Resource": "*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": {
+                        "Ref": "AWS::Region"
+                      }
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "cloudwatch:DescribeAlarms",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecs:DescribeServices",
+                    "ecs:UpdateService"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:service/default/linguisnap-api"
+                  }
+                }
+              ]
+            }
+          }
         ]
       }
     },
