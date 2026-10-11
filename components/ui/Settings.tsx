@@ -87,8 +87,8 @@ const PROVIDER_MODELS: Record<
 
   deepseek: [
     {
-      id: "deepseek-chat",
-      name: "DeepSeek V3.2",
+      id: "deepseek-flash",
+      name: "DeepSeek-V4.1-Flash",
     },
   ],
 };
