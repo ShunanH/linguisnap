@@ -1,162 +1,390 @@
-import { GoogleGenAI } from "@google/genai";
-import OpenAI from "openai";
-import Anthropic from "@anthropic-ai/sdk";
+import {
+  getSystemPrompt,
+} from "@/lib/prompts";
 
-import { getSystemPrompt } from "@/lib/prompts";
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
-import { NextResponse } from "next/server"
-const redis = new Redis({
-  url: process.env.KV_REST_API_URL || "",
-  token: process.env.KV_REST_API_TOKEN || "",
-});
+import {
+  Ratelimit,
+} from "@upstash/ratelimit";
 
-const ratelimit = new Ratelimit({
-  redis: redis,
-  limiter: Ratelimit.slidingWindow(20, "24 h"),
-});
+import {
+  Redis,
+} from "@upstash/redis";
 
-export async function POST(req: Request) {
+import {
+  NextResponse,
+} from "next/server";
+
+function makeRateLimit() {
+  const url = (process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || "").trim();
+  const token = (process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || "").trim();
+  if (!url || !token) return null;
+  return new Ratelimit({ redis: new Redis({ url, token }), limiter: Ratelimit.slidingWindow(20, "24 h") });
+}
+
+export async function POST(
+  req: Request
+) {
+  let stage = "request";
+  const requestId = crypto.randomUUID();
   try {
-
-    const { text, apiKey, provider, model, lang } = await req.json();
-
-    if (!text || !text.trim()) {
-      return NextResponse.json({ error: "请输入需要分析的句子哦" }, { status: 400 });
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: "请求必须是有效 JSON。" }, { status: 400 });
+    }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json({ error: "请求必须是 JSON 对象。" }, { status: 400 });
     }
 
-    // 注入默认 Key
-    let finalApiKey = apiKey?.trim() || "";
-    let isUsingFreeTier = false; // 标记是否在使用学习模式的免费额度
-    
-    if (finalApiKey === "LINGUISNAP_SECRET_BYPASS_2026") {
-      finalApiKey = process.env.DEEPSEEK_DEFAULT_KEY || "";
-      isUsingFreeTier = true; // 确认为学习模式
-      
-      if (!finalApiKey) {
-        return NextResponse.json({ 
-          error: "站长还未在后台配置默认额度，请在菜单中开启专业模式，使用自己的API Key。" 
-        }, { status: 500 });
+    const {
+      text,
+      isPro = true,
+      apiKey,
+      provider =
+        "deepseek",
+      model =
+        "deepseek-flash",
+      lang = "zh-all",
+    } = body as Record<string, unknown>;
+
+    if (typeof isPro !== "boolean" || typeof provider !== "string" ||
+        !["openai", "deepseek", "anthropic", "gemini"].includes(provider) ||
+        typeof model !== "string" || !model.trim() || model.length > 200 ||
+        typeof lang !== "string" || lang.length > 50) {
+      return NextResponse.json({ error: "请求参数无效。" }, { status: 400 });
+    }
+
+    if (
+      typeof text !==
+        "string" ||
+      !text.trim()
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "请输入需要分析的句子。",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    if (text.length > 10_000) {
+      return NextResponse.json({ error: "输入不能超过 10000 个字符。" }, { status: 413 });
+    }
+
+    let finalApiKey = "";
+    let finalProvider =
+      provider;
+
+    let finalModel =
+      model;
+
+    /*
+     * BYOK mode
+     *
+     * The key exists only in this request.
+     * We do NOT write it to storage or logs.
+     */
+    if (isPro) {
+      if (
+        typeof apiKey !==
+          "string" ||
+        !apiKey.trim()
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "专业模式需要提供 API Key。",
+          },
+          {
+            status: 401,
+          }
+        );
       }
-    }
 
-    if (!finalApiKey) {
-      return NextResponse.json({ error: "未检测到有效的API Key，请检查设置。" }, { status: 401 });
-    }
-    if (isUsingFreeTier) {
-      const ip = req.headers.get("x-forwarded-for") ?? "127.0.0.1";
-      const { success, limit, reset, remaining } = await ratelimit.limit(`ratelimit_${ip}`);
-
-      if (!success) {
-        return NextResponse.json({ 
-          error: "今日「学习模式」的免费体验次数已用完啦！请明天再来，或在菜单开启「专业模式」填入自有 Key 继续使用。" 
-        }, { status: 429 });
-      }
-
-      console.log(`[安全日志] IP: ${ip} 消耗了一次免费额度。今日剩余: ${remaining}/${limit}`);
-    }
-    // ==========================================
-
-    // 3. 动态组装 Prompt
-    const systemInstruction = getSystemPrompt(lang);
-    const userMessage = `待分析句子: "${text.trim()}"`;
-    const finalPrompt = `${systemInstruction}\n\n${userMessage}`;
-
-    let responseText = "";
-
-
-    if (provider === "openai") {
-      const openai = new OpenAI({ apiKey: finalApiKey });
-      const response = await openai.chat.completions.create({
-        model: model || "gpt-4o",
-        messages: [
-          { role: "system", content: systemInstruction },
-          { role: "user", content: userMessage }
-        ],
-        temperature: 0.1, 
-        response_format: { type: "json_object" } 
-      });
-      responseText = response.choices[0].message.content || "";
-
-    } else if (provider === "deepseek") {
-      const openai = new OpenAI({ 
-        apiKey: finalApiKey,
-        baseURL: "https://api.deepseek.com", 
-      });
-      const response = await openai.chat.completions.create({
-        model: model || "deepseek-chat",
-        messages: [
-          { role: "system", content: systemInstruction },
-          { role: "user", content: userMessage }
-        ],
-        temperature: 0.1,
-        response_format: { type: "json_object" } 
-      });
-      responseText = response.choices[0].message.content || "";
-
-    } else if (provider === "anthropic") {
-      const anthropic = new Anthropic({ apiKey: finalApiKey });
-      const response = await anthropic.messages.create({
-        model: model || "claude-3-5-sonnet-20241022",
-        max_tokens: 8192,
-        temperature: 0.1,
-        system: systemInstruction, 
-        messages: [{ role: "user", content: userMessage }]
-      });
-      const textBlock = response.content.find(block => block.type === 'text');
-      responseText = textBlock ? textBlock.text : "";
+      finalApiKey =
+        apiKey.trim();
 
     } else {
-      const ai = new GoogleGenAI({ apiKey: finalApiKey });
-      const response = await ai.models.generateContent({
-        model: model || "gemini-3.0-preview", 
-        contents: finalPrompt,
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.1, 
+      /*
+       * Basic mode uses the site's own
+       * DeepSeek key.
+       */
+      finalProvider =
+        "deepseek";
+
+      finalModel = (process.env.DEEPSEEK_DEFAULT_MODEL || "deepseek-flash").trim();
+
+      finalApiKey =
+        process.env
+          .DEEPSEEK_DEFAULT_KEY?.trim() ||
+        "";
+
+      if (!finalApiKey) {
+        return NextResponse.json(
+          {
+            error:
+              "当前未提供免费额度，请在专业模式中使用自己的 API Key。",
+          },
+          {
+            status: 503,
+          }
+        );
+      }
+
+      /*
+       * Only site-funded requests
+       * consume the free quota.
+       */
+      stage = "quota";
+      const ratelimit = makeRateLimit();
+      if (!ratelimit) {
+        return NextResponse.json({ error: "免费额度服务暂不可用，请使用自己的 API Key。" }, { status: 503 });
+      }
+      if (ratelimit) {
+        const forwarded =
+          req.headers.get(
+            "x-forwarded-for"
+          );
+
+        const ip =
+          forwarded
+            ?.split(",")[0]
+            ?.trim() ||
+          "127.0.0.1";
+
+        const {
+          success,
+        } =
+          await ratelimit.limit(
+            `linguisnap:${ip}`
+          );
+
+        if (!success) {
+          return NextResponse.json(
+            {
+              error:
+                "今日免费解析次数已用完，请切换到专业模式使用自己的 API Key。",
+            },
+            {
+              status: 429,
+            }
+          );
         }
-      });
-      responseText = response.text || "";
+      }
     }
 
-    if (!responseText) {
-      throw new Error("EMPTY_RESPONSE");
+    stage = "configuration";
+    const fastApiBaseUrl = process.env.FASTAPI_BASE_URL?.trim();
+
+    const internalToken = process.env.INTERNAL_API_TOKEN?.trim();
+
+    if (
+      !fastApiBaseUrl ||
+      !internalToken
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "LinguiSnap AI backend 尚未配置。",
+        },
+        {
+          status: 503,
+        }
+      );
     }
 
-    // 后台调试日志
-    console.log(`=== API 原始返回数据 ===`);
-    console.log(responseText);
-    console.log("============================");
+    /*
+     * Production service-to-service traffic
+     * should use HTTPS.
+     *
+     * localhost HTTP is allowed only
+     * during development.
+     */
+    if (
+      process.env.NODE_ENV ===
+        "production" &&
+      !fastApiBaseUrl.startsWith(
+        "https://"
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "AI backend configuration is not secure.",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
 
-    // 5. 正则清洗 Markdown 标签
-    responseText = responseText.replace(/^```json\n?|```$/g, '').trim();
+    const parsedBaseUrl = new URL(fastApiBaseUrl);
+    if (parsedBaseUrl.username || parsedBaseUrl.password || parsedBaseUrl.search || parsedBaseUrl.hash ||
+        !/^[\x21-\x7E]+$/.test(internalToken)) {
+      return NextResponse.json({ error: "后端连接配置格式无效，请检查服务地址与内部口令。", code: "BACKEND_CONFIG_INVALID" }, { status: 500 });
+    }
 
-    // 6. 解析并返回
+    const systemInstruction =
+      getSystemPrompt(lang);
+
+    const userMessage =
+      `待分析句子: "${text.trim()}"`;
+
+    stage = "backend_connection";
+    const upstream =
+      await fetch(
+        `${fastApiBaseUrl.replace(
+          /\/$/,
+          ""
+        )}/analyze`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            "x-internal-token":
+              internalToken,
+          },
+
+          cache: "no-store",
+
+          signal:
+            AbortSignal.timeout(
+              60_000
+            ),
+
+          body:
+            JSON.stringify({
+              apiKey:
+                finalApiKey,
+
+              provider:
+                finalProvider,
+
+              model:
+                finalModel,
+
+              systemInstruction,
+
+              userMessage,
+            }),
+        }
+      );
+
+    const raw =
+      await upstream.text();
+
+    let upstreamData:
+      | Record<
+          string,
+          unknown
+        >
+      | null = null;
+
     try {
-      const data = JSON.parse(responseText);
-      return NextResponse.json(data);
-    } catch (jsonError) {
-      throw new Error("JSON_PARSE_ERROR");
+      upstreamData =
+        JSON.parse(raw);
+    } catch {
+      return NextResponse.json(
+        {
+          error:
+            "AI backend 返回了无法解析的数据。",
+        },
+        {
+          status: 502,
+        }
+      );
     }
 
-  } catch (error: any) {
-    console.error("API 分析出错:", error);
-    
-    const errorMsg = error.message || "";
-    let friendlyMessage = `哎呀，服务器开小差了。真实死因：${errorMsg}`;
+    if (!upstream.ok) {
+      if (upstream.status === 401 && upstreamData?.detail === "Unauthorized internal request.") {
+        console.error("[analyze]", { requestId, stage: "backend_auth", code: "INTERNAL_AUTH_FAILED" });
+        return NextResponse.json({ error: `网站前后端内部鉴权失败，请联系站点维护者。错误编号：${requestId}`, code: "INTERNAL_AUTH_FAILED", requestId }, { status: 502 });
+      }
+      const detail =
+        typeof upstreamData
+          ?.detail ===
+        "string"
+          ? upstreamData.detail
+          : "AI backend request failed.";
 
-    if (errorMsg.includes("503") || errorMsg.includes("high demand") || errorMsg.includes("overloaded")) {
-      friendlyMessage = "当前 AI 算力太挤了，服务器有点超载。稍等几秒钟再试一次吧！";
-    } else if (errorMsg === "JSON_PARSE_ERROR" || errorMsg.includes("SyntaxError")) {
-      friendlyMessage = "AI 这次吐出的数据格式有点乱，没能成功拼装成卡片。请再点一次发送！";
-    } else if (errorMsg === "EMPTY_RESPONSE") {
-      friendlyMessage = "AI 暂时陷入了沉思，什么也没返回，请重试。";
-    } else if (errorMsg.includes("API key not valid") || errorMsg.includes("Incorrect API key") || errorMsg.includes("invalid x-api-key") || errorMsg.includes("Authentication Fails")) {
-      friendlyMessage = "API Key 好像不正确或已失效，请重新检查一下~";
-    } else if (errorMsg.includes("429") || errorMsg.includes("quota") || errorMsg.includes("insufficient_quota")) {
-      friendlyMessage = "API 额度好像用完了，或者请求太频繁啦，请检查账单或稍后再试。";
+      return NextResponse.json(
+        {
+          error: detail,
+        },
+        {
+          status:
+            upstream.status,
+        }
+      );
     }
 
-    return NextResponse.json({ error: friendlyMessage }, { status: 500 });
+    return NextResponse.json(
+      upstreamData,
+      {
+        headers: {
+          "Cache-Control":
+            "no-store",
+        },
+      }
+    );
+  } catch (
+    error: unknown
+  ) {
+    /*
+     * Deliberately do not log request bodies
+     * or user API keys here.
+     */
+    const cause = error instanceof Error ? (error.cause as { code?: unknown } | undefined) : undefined;
+    const transportCode = typeof cause?.code === "string" && /^[A-Z0-9_]+$/.test(cause.code) ? cause.code : undefined;
+    console.error("[analyze]", { requestId, stage, code: transportCode || "REQUEST_FAILED" });
+    if (stage === "quota") {
+      return NextResponse.json({ error: `免费额度服务连接失败，请暂用专业模式。错误编号：${requestId}`, code: "QUOTA_UNAVAILABLE", requestId }, { status: 503 });
+    }
+    if (stage === "configuration") {
+      return NextResponse.json({ error: "后端连接配置格式无效，请检查 FASTAPI_BASE_URL。", code: "BACKEND_CONFIG_INVALID", requestId }, { status: 500 });
+    }
+    const message =
+      error instanceof Error
+        ? error.message
+        : "";
+
+    if (
+      (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name)) ||
+      message.includes(
+        "timeout"
+      ) ||
+      message.includes(
+        "aborted"
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "AI 服务响应超时，请稍后重试。",
+        },
+        {
+          status: 504,
+        }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        error:
+          `网站暂时无法连接分析后端。错误编号：${requestId}`,
+          code: "BACKEND_UNREACHABLE",
+          requestId,
+      },
+      {
+        status: 503,
+      }
+    );
   }
 }

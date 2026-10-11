@@ -1,0 +1,40 @@
+/* 悬浮小按钮的样式 */
+#linguisnap-float-btn {
+  position: absolute;
+  z-index: 2147483647;
+  background: #0f172a;
+  color: white;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-family: system-ui, -apple-system, sans-serif;
+  cursor: pointer;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+  display: none;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.2s ease;
+}
+
+#linguisnap-float-btn:hover {
+  background: #1e293b;
+}
+
+/* 模拟出来的结果面板样式（带毛玻璃质感） */
+#linguisnap-panel {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 340px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  z-index: 2147483647;
+  padding: 24px;
+  font-family: system-ui, -apple-system, sans-serif;
+  display: none;
+  color: #0f172a;
+}

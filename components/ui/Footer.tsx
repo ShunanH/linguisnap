@@ -5,17 +5,15 @@ import { useLanguage } from '@/components/LanguageContext';
 const FOOTER_DICT = {
   zh: {
     copyright: "Copyright© 2026 LinguiSnap. 保留所有权利。",
-    crafted: "Crafted by Shunan, with help of Gemini.",
-    license: "AGPL-3.0 开源协议",
-    premium: "高级托管",
-    disclaimer: "免责声明：本工具由AI驱动，解析结果可能存在误差，仅供学习参考。请勿在此输入任何个人敏感或隐私数据。"
+    crafted: "Crafted by Shunan.",
+    license: "Github源代码库",
+    disclaimer: "免责声明：本工具由AI语言模型驱动，解析结果可能存在误差，仅供学习参考。请勿在此输入任何个人敏感或隐私数据。"
   },
   en: {
     copyright: "Copyright© 2026 LinguiSnap. All rights reserved.",
-    crafted: "Crafted by Shunan, with help of Gemini.",
-    license: "AGPL-3.0 License",
-    premium: "Premium Hosted Service",
-    disclaimer: "Disclaimer: LinguiSnap is powered by AI. Results may contain inaccuracies. Please verify independently. Do not input sensitive personal information."
+    crafted: "Crafted by Shunan.",
+    license: "Github源代码库",
+    disclaimer: "Disclaimer: LinguiSnap is powered by genAI. Results may contain inaccuracies. Please verify independently. Do not input sensitive personal information."
   }
 };
 
@@ -42,7 +40,6 @@ export default function Footer() {
           {t.license}
         </a>
         <span className="text-slate-300">|</span>
-        <span className="hover:text-slate-600 transition-colors cursor-default">{t.premium}</span>
       </div>
 
       <div className="max-w-2xl px-6 text-center mt-1 text-[10px] text-slate-400 leading-normal">
