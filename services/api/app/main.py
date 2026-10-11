@@ -351,7 +351,6 @@ async def call_anthropic(
             "model":
                 request.model,
             "max_tokens": 8192,
-            "temperature": 0.1,
             "system":
                 request.systemInstruction,
             "messages": [
@@ -516,6 +515,12 @@ async def health():
             "linguisnap-ai-api",
         "version": "2.0.0",
     }
+
+
+@app.get("/internal/health")
+async def internal_health(x_internal_token: str | None = Header(default=None)):
+    verify_internal_token(x_internal_token)
+    return {"status": "ok", "service": "linguisnap-ai-api"}
 
 
 @app.post(

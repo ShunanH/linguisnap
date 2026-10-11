@@ -14,35 +14,18 @@ import {
   NextResponse,
 } from "next/server";
 
-const redisUrl =
-  process.env
-    .KV_REST_API_URL;
-
-const redisToken =
-  process.env
-    .KV_REST_API_TOKEN;
-
-const ratelimit =
-  redisUrl && redisToken
-    ? new Ratelimit({
-        redis:
-          new Redis({
-            url: redisUrl,
-            token:
-              redisToken,
-          }),
-
-        limiter:
-          Ratelimit.slidingWindow(
-            20,
-            "24 h"
-          ),
-      })
-    : null;
+function makeRateLimit() {
+  const url = (process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || "").trim();
+  const token = (process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || "").trim();
+  if (!url || !token) return null;
+  return new Ratelimit({ redis: new Redis({ url, token }), limiter: Ratelimit.slidingWindow(20, "24 h") });
+}
 
 export async function POST(
   req: Request
 ) {
+  let stage = "request";
+  const requestId = crypto.randomUUID();
   try {
     let body: unknown;
     try {
@@ -61,7 +44,7 @@ export async function POST(
       provider =
         "deepseek",
       model =
-        "deepseek-chat",
+        "deepseek-flash",
       lang = "zh-all",
     } = body as Record<string, unknown>;
 
@@ -133,12 +116,11 @@ export async function POST(
       finalProvider =
         "deepseek";
 
-      finalModel =
-        "deepseek-chat";
+      finalModel = (process.env.DEEPSEEK_DEFAULT_MODEL || "deepseek-flash").trim();
 
       finalApiKey =
         process.env
-          .DEEPSEEK_DEFAULT_KEY ||
+          .DEEPSEEK_DEFAULT_KEY?.trim() ||
         "";
 
       if (!finalApiKey) {
@@ -157,6 +139,8 @@ export async function POST(
        * Only site-funded requests
        * consume the free quota.
        */
+      stage = "quota";
+      const ratelimit = makeRateLimit();
       if (!ratelimit) {
         return NextResponse.json({ error: "免费额度服务暂不可用，请使用自己的 API Key。" }, { status: 503 });
       }
@@ -193,13 +177,10 @@ export async function POST(
       }
     }
 
-    const fastApiBaseUrl =
-      process.env
-        .FASTAPI_BASE_URL;
+    stage = "configuration";
+    const fastApiBaseUrl = process.env.FASTAPI_BASE_URL?.trim();
 
-    const internalToken =
-      process.env
-        .INTERNAL_API_TOKEN;
+    const internalToken = process.env.INTERNAL_API_TOKEN?.trim();
 
     if (
       !fastApiBaseUrl ||
@@ -241,12 +222,19 @@ export async function POST(
       );
     }
 
+    const parsedBaseUrl = new URL(fastApiBaseUrl);
+    if (parsedBaseUrl.username || parsedBaseUrl.password || parsedBaseUrl.search || parsedBaseUrl.hash ||
+        !/^[\x21-\x7E]+$/.test(internalToken)) {
+      return NextResponse.json({ error: "后端连接配置格式无效，请检查服务地址与内部口令。", code: "BACKEND_CONFIG_INVALID" }, { status: 500 });
+    }
+
     const systemInstruction =
       getSystemPrompt(lang);
 
     const userMessage =
       `待分析句子: "${text.trim()}"`;
 
+    stage = "backend_connection";
     const upstream =
       await fetch(
         `${fastApiBaseUrl.replace(
@@ -315,6 +303,10 @@ export async function POST(
     }
 
     if (!upstream.ok) {
+      if (upstream.status === 401 && upstreamData?.detail === "Unauthorized internal request.") {
+        console.error("[analyze]", { requestId, stage: "backend_auth", code: "INTERNAL_AUTH_FAILED" });
+        return NextResponse.json({ error: `网站前后端内部鉴权失败，请联系站点维护者。错误编号：${requestId}`, code: "INTERNAL_AUTH_FAILED", requestId }, { status: 502 });
+      }
       const detail =
         typeof upstreamData
           ?.detail ===
@@ -349,6 +341,15 @@ export async function POST(
      * Deliberately do not log request bodies
      * or user API keys here.
      */
+    const cause = error instanceof Error ? (error.cause as { code?: unknown } | undefined) : undefined;
+    const transportCode = typeof cause?.code === "string" && /^[A-Z0-9_]+$/.test(cause.code) ? cause.code : undefined;
+    console.error("[analyze]", { requestId, stage, code: transportCode || "REQUEST_FAILED" });
+    if (stage === "quota") {
+      return NextResponse.json({ error: `免费额度服务连接失败，请暂用专业模式。错误编号：${requestId}`, code: "QUOTA_UNAVAILABLE", requestId }, { status: 503 });
+    }
+    if (stage === "configuration") {
+      return NextResponse.json({ error: "后端连接配置格式无效，请检查 FASTAPI_BASE_URL。", code: "BACKEND_CONFIG_INVALID", requestId }, { status: 500 });
+    }
     const message =
       error instanceof Error
         ? error.message
@@ -377,7 +378,9 @@ export async function POST(
     return NextResponse.json(
       {
         error:
-          "LinguiSnap 暂时无法连接 AI 服务，请稍后重试。",
+          `网站暂时无法连接分析后端。错误编号：${requestId}`,
+          code: "BACKEND_UNREACHABLE",
+          requestId,
       },
       {
         status: 503,

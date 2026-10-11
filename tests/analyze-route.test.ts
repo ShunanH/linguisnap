@@ -100,7 +100,7 @@ describe("gateway request and quota boundaries", () => {
     expect((await post({ ...body, isPro: false })).status).toBe(200);
     expect(limit).toHaveBeenCalledWith("linguisnap:192.0.2.1");
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
-      apiKey: "sentinel-site-key", provider: "deepseek", model: "deepseek-chat",
+      apiKey: "sentinel-site-key", provider: "deepseek", model: "deepseek-flash",
     });
   });
 
@@ -187,5 +187,32 @@ describe("regressions for repaired gateway boundaries", () => {
   it("GAP-G6: classify timeout by exception name, not message wording", async () => {
     fetchMock.mockRejectedValue(new DOMException("Deadline exceeded", "TimeoutError"));
     expect((await post()).status).toBe(504);
+  });
+});
+
+
+describe("deployment configuration regressions", () => {
+  it("normalizes pasted whitespace in backend settings", async () => {
+    vi.stubEnv("FASTAPI_BASE_URL", " https://backend.example/\n");
+    vi.stubEnv("INTERNAL_API_TOKEN", " sentinel-service-token\n");
+    fetchMock.mockResolvedValue(Response.json(analysis));
+    expect((await post()).status).toBe(200);
+    expect(fetchMock.mock.calls[0][0]).toBe("https://backend.example/analyze");
+    expect(fetchMock.mock.calls[0][1].headers["x-internal-token"]).toBe("sentinel-service-token");
+  });
+  it("identifies quota errors and does not disclose Redis credentials", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    limit.mockRejectedValue(new Error("sentinel-redis-secret"));
+    const response = await post({ ...body, isPro: false });
+    expect((await response.json()).code).toBe("QUOTA_UNAVAILABLE");
+    expect(JSON.stringify(spy.mock.calls)).not.toContain("sentinel-redis-secret");
+    expect(fetchMock).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+  it("distinguishes internal authentication from model authentication", async () => {
+    fetchMock.mockResolvedValue(Response.json({ detail: "Unauthorized internal request." }, { status: 401 }));
+    const response = await post();
+    expect(response.status).toBe(502);
+    expect((await response.json()).code).toBe("INTERNAL_AUTH_FAILED");
   });
 });

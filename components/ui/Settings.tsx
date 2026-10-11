@@ -13,7 +13,6 @@ import {
   Globe,
   Sparkles,
   Cpu,
-  ShieldCheck,
 } from "lucide-react";
 
 import * as Select from "@radix-ui/react-select";
@@ -45,53 +44,7 @@ const PROVIDERS = [
   },
 ];
 
-const PROVIDER_MODELS: Record<
-  string,
-  {
-    id: string;
-    name: string;
-  }[]
-> = {
-  gemini: [
-    {
-      id: "gemini-3.1-flash-lite-preview",
-      name: "Gemini 3.1 Flash Lite",
-    },
-    {
-      id: "gemini-2.5-flash-lite",
-      name: "Gemini 2.5 Flash Lite",
-    },
-  ],
-
-  openai: [
-    {
-      id: "gpt-4o",
-      name: "GPT-4o",
-    },
-    {
-      id: "gpt-4o-mini",
-      name: "GPT-4o Mini",
-    },
-  ],
-
-  anthropic: [
-    {
-      id: "claude-opus-4-7",
-      name: "Claude Opus 4.7",
-    },
-    {
-      id: "claude-haiku-4-5-20251001",
-      name: "Claude Haiku 4.5",
-    },
-  ],
-
-  deepseek: [
-    {
-      id: "deepseek-flash",
-      name: "DeepSeek-V4.1-Flash",
-    },
-  ],
-};
+import { PROVIDER_MODELS, normalizeModel } from "@/lib/models";
 
 export default function Settings() {
   const {
@@ -222,7 +175,7 @@ export default function Settings() {
         provider:
           "deepseek",
         model:
-          "deepseek-chat",
+          "deepseek-flash",
         lang:
           uiLang === "zh"
             ? "zh-all"
@@ -255,26 +208,9 @@ export default function Settings() {
           config.provider
         );
 
-        if (
-          config.model &&
-          PROVIDER_MODELS[
-            config.provider
-          ].some(
-            (item) =>
-              item.id ===
-              config.model
-          )
-        ) {
-          setModel(
-            config.model
-          );
-        } else {
-          setModel(
-            PROVIDER_MODELS[
-              config.provider
-            ][0].id
-          );
-        }
+        const restoredModel = normalizeModel(config.provider, config.model);
+        setModel(restoredModel);
+        persistConfig({ model: restoredModel });
       }
 
       if (config.lang) {
@@ -504,30 +440,6 @@ export default function Settings() {
       {isPro && (
         <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
 
-          {/* Security explanation */}
-
-          <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-100 rounded-2xl">
-
-            <ShieldCheck
-              size={20}
-              className="text-blue-600 shrink-0 mt-0.5"
-            />
-
-            <div>
-              <p className="text-sm font-bold text-blue-800">
-                {uiLang === "zh"
-                  ? "Session-only BYOK"
-                  : "Session-only BYOK"}
-              </p>
-
-              <p className="text-xs text-blue-700/80 mt-1 leading-relaxed">
-                {uiLang === "zh"
-                  ? "API Key 仅保存在当前页面内存中。解析时会通过 HTTPS 临时发送到 LinguiSnap 后端，再转发给所选模型提供商。LinguiSnap 不会把 Key 写入数据库、本地缓存、Redis 或日志。刷新页面后需要重新输入。"
-                  : "Your API key is kept only in this page's memory. During analysis it is temporarily sent over HTTPS to the LinguiSnap backend and forwarded to the selected provider. It is not persisted in local storage, databases, Redis, or application logs. Refreshing the page removes it."}
-              </p>
-            </div>
-          </div>
-
           {/* Provider */}
 
           <Select.Root
@@ -708,13 +620,9 @@ export default function Settings() {
             </div>
 
             <p className="text-[11px] text-slate-400 px-1">
-              {currentApiKey
-                ? uiLang === "zh"
-                  ? "✓ 当前会话已配置 Key。刷新页面后会自动清除。"
-                  : "✓ Key is available for this session. It will be removed on refresh."
-                : uiLang === "zh"
-                  ? "Key 不会保存到浏览器存储。"
-                  : "The key is not persisted in browser storage."}
+              {uiLang === "zh"
+                ? "API Key 不会被保存。"
+                : "Your API key will not be saved."}
             </p>
           </div>
         </div>

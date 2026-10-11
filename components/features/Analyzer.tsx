@@ -1,5 +1,7 @@
 "use client";
 
+import { normalizeModel } from "@/lib/models";
+
 import React, {
   useState,
 } from "react";
@@ -66,7 +68,7 @@ export default function Analyzer() {
       let isPro = true;
       let provider = "deepseek";
       let model =
-        "deepseek-chat";
+        "deepseek-flash";
       let lang = "zh-all";
 
       const configStr =
@@ -117,6 +119,9 @@ export default function Analyzer() {
       /*
        * API key only comes from React memory.
        */
+      model = normalizeModel(provider, model);
+      if (!model) { setError("请选择模型。"); return; }
+
       const apiKey =
         isPro
           ? getApiKey(
