@@ -6,13 +6,13 @@ const FOOTER_DICT = {
   zh: {
     copyright: "Copyright© 2026 LinguiSnap. 保留所有权利。",
     crafted: "Crafted by Shunan.",
-    license: "AGPL-3.0 开源协议",
+    license: "Github源代码库",
     disclaimer: "免责声明：本工具由AI语言模型驱动，解析结果可能存在误差，仅供学习参考。请勿在此输入任何个人敏感或隐私数据。"
   },
   en: {
     copyright: "Copyright© 2026 LinguiSnap. All rights reserved.",
     crafted: "Crafted by Shunan.",
-    license: "AGPL-3.0 License",
+    license: "Github源代码库",
     disclaimer: "Disclaimer: LinguiSnap is powered by genAI. Results may contain inaccuracies. Please verify independently. Do not input sensitive personal information."
   }
 };
