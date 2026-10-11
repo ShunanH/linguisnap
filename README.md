@@ -1,78 +1,66 @@
 # LinguiSnap
 
-> **Snap your languages to their core.** | **拆积木一样学语言。**
+LinguiSnap helps language learners read unfamiliar sentences in a different language by breaking them into words, morphemes, and grammatical tags. Each word comes with a direct translation (you can choose English or Chinese translation) and explanations of its structure, alongside a translation of the full sentence.
 
-LinguiSnap是一款基于大语言模型（LLM）驱动的外语骨架解析工具。它不采用传统的外语学习模式，通过基于语言学的形态语法拆解，将复杂的句子还原为最基础的词素积木。
+Please note that the LLM will translate the word directly. You may meet slangs that LLM cannot give the exact correct translation.
 
-可通过vercel托管访问网页版：
+[Open LinguiSnap ](https://linguisnap.vercel.app/) · [中文使用教程 / Tutorial](https://linguisnap.vercel.app/tutorial)
 
-https://linguisnap.vercel.app/
+## Using LinguiSnap
 
----
+1. Open settings and choose your output language: Chinese, English, or Chinese explanations with English translations.
+2. Choose a mode:
+   - **Basic Mode / 学习模式** uses the site's default DeepSeek account, with up to 20 requests per IP address in a rolling 24-hour window. Availability depends on the site's shared quota configuration.
+   - **Pro Mode / 专业模式** uses your own API key. Select DeepSeek, OpenAI, Google Gemini, or Anthropic, then choose a model from the dropdown.
+3. Enter a sentence and click **Analyze / 解析**.
+4. Hover over the morphemes and grammar tags to read their explanations.
 
-## 理念
+Your API key will not be saved or memorized. Every refresh will clean it.
 
-### 语言是一堆积木 (Language as Lego)
-传统的学习方式往往让人迷失在海量的单词和语法规则中。LinguiSnap 提倡自上而下的学习路径：
-- **不背单词表**：直接从真实语料开始。
-- **物理拆分**：将词汇拆解为词素，揭示每个词素的用途和含义。
-- **语法透视**：通过简化的莱比锡标注法，标出每个词块的语法身份。
+## How it works
 
----
+The Next.js app handles the interface, analysis prompts, and shared request quotas. Its `/api/analyze` route sends requests to a FastAPI service, which calls the selected model provider and validates the response against a Pydantic schema. The frontend renders the resulting word analyses and sentence translation.
 
-## 运行模式 (App Modes)
+| Component | Stack | Hosting |
+| --- | --- | --- |
+| Web app and API gateway | Next.js 16, React, TypeScript, Tailwind CSS, Radix UI | Vercel |
+| Analysis service | Python 3.12, FastAPI, Pydantic, HTTPX | Docker on AWS ECS Fargate |
+| Shared quotas | Upstash Redis | Upstash |
+| Container images | Docker | Amazon ECR |
+| Service credentials and logs | AWS Secrets Manager, CloudWatch | AWS |
 
-### 1. 学习模式 (Basic Mode)
-- **零配置**：开箱即用，默认调用DeepSeek引擎。
-- **每日限额**：滑动窗口限流（每日 20 次），确保公共服务稳定。
+The gateway authenticates to FastAPI using a shared internal token. Provider requests use bounded retries for transient errors, with a default 50-second deadline for the complete analysis operation.
 
-### 2. 专业模式 (Pro Mode)
-- **BYOK**：支持填入私有 API Key。
-- **旗舰模型**：可自由切换至 Gemini, GPT 或 Claude 等模型。
-- **隐私安全**：Key仅加密存储于用户本地浏览器缓存，LinguiSnap对此一无所知。
+## Run locally
 
----
+Use Node.js 22, Python 3.12, and npm. The commands below use a Bash-compatible shell.
 
-## 技术栈 (Tech Stack)
-
-- Framework: Next.js 15 (App Router)
-- Styling: Tailwind CSS
-- Database/Security: Upstash Redis (Serverless Rate Limiting)
-- Components: Radix UI & Lucide Icons
-- Deployment: Vercel
-
----
-
-## 开发者指南 (Getting Started)
-
-### 1. 克隆项目
-git clone https://github.com/ShunanH/linguisnap.git
+```bash
+git clone --branch main --single-branch https://github.com/ShunanH/linguisnap.git
 cd linguisnap
+npm ci
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r services/api/requirements.txt
+```
 
-### 2. 配置环境变量
-在根目录创建 .env.local 文件，并填入以下参数：
-DEEPSEEK_DEFAULT_KEY=Key
-KV_REST_API_URL=URL
-KV_REST_API_TOKEN=Token
+Create `.env.local` in the repository root:
 
-### 3. 安装并启动
-npm install
+```dotenv
+FASTAPI_BASE_URL=http://127.0.0.1:8000
+INTERNAL_API_TOKEN=local-development-token
+```
+
+Start FastAPI from the repository root:
+
+```bash
+source .venv/bin/activate
+export INTERNAL_API_TOKEN=local-development-token
+python -m uvicorn app.main:app --app-dir services/api --reload --port 8000
+```
+
+In a second terminal, start Next.js:
+
+```bash
 npm run dev
-
----
-
-## 开源协议 (License)
-
-本项目采用 AGPL-3.0 协议开源。
-- 个人/教育用途：完全自由。
-- 商业用途：根据 AGPL 协议，如果您使用本项目代码提供网络服务（SaaS），您必须公开您的源代码。
-
----
-
-## 免责声明 (Disclaimer)
-
-本工具由 AI 驱动，解析结果可能存在误差，仅供学习参考。请勿在此输入任何个人敏感或隐私数据。
-
----
-
-Crafted with ❤️ by Shunan, with help of Gemini.
+```
